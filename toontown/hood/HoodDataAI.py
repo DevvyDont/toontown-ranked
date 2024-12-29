@@ -38,14 +38,7 @@ class HoodDataAI:
         return []
 
     def startup(self):
-        for zone in self.air.zoneTable[self.canonicalHoodId]:
-            zoneId = ZoneUtil.getTrueZoneId(zone[0], self.zoneId)
-            self.notify.info('Creating zone... %s' % self.getLocationName(zoneId))
-
-        self.createFishingPonds()
-        self.createStreetClerks()
-        self.createBuildingManagers()
-        self.createSuitPlanners()
+        pass
 
     def shutdown(self):
         self.setRedirect(None)

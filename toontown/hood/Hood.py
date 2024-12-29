@@ -78,28 +78,12 @@ class Hood(StateData.StateData):
         return
 
     def load(self):
-        if self.storageDNAFile:
-            loader.loadDNAFile(self.dnaStore, self.storageDNAFile)
-        newsManager = base.cr.newsManager
-        if newsManager:
-            holidayIds = base.cr.newsManager.getDecorationHolidayId()
-            for holiday in holidayIds:
-                for storageFile in self.holidayStorageDNADict.get(holiday, []):
-                    loader.loadDNAFile(self.dnaStore, storageFile)
-
-            if ToontownGlobals.HALLOWEEN_COSTUMES not in holidayIds and ToontownGlobals.SPOOKY_COSTUMES not in holidayIds or not self.spookySkyFile:
-                self.sky = loader.loadModel(self.skyFile)
-                self.sky.setTag('sky', 'Regular')
-                self.sky.setScale(1.0)
-                self.sky.setFogOff()
-            else:
-                self.sky = loader.loadModel(self.spookySkyFile)
-                self.sky.setTag('sky', 'Halloween')
-        if not newsManager:
-            self.sky = loader.loadModel(self.skyFile)
-            self.sky.setTag('sky', 'Regular')
-            self.sky.setScale(1.0)
-            self.sky.setFogOff()
+        # self.sky = loader.loadModel(self.skyFile)
+        # self.sky.setTag('sky', 'Regular')
+        # self.sky.setScale(1.0)
+        # self.sky.setFogOff()
+        # self.sky.reparentTo(camera)
+        pass
 
     def unload(self):
         if hasattr(self, 'loader'):

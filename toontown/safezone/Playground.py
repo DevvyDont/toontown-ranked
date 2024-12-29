@@ -208,37 +208,9 @@ class Playground(BattlePlace):
         self.accept('doorDoneEvent', self.handleDoorDoneEvent)
         self.accept('DistributedDoor_doorTrigger', self.handleDoorTrigger)
         base.playMusic(self.loader.music, looping=1, volume=0.8)
-        self.loader.geom.reparentTo(render)
-        for i in self.loader.nodeList:
-            self.loader.enterAnimatedProps(i)
-
         self._telemLimiter = TLGatherAllAvs('Playground', RotationLimitToH)
-
-        def __lightDecorationOn__():
-            geom = base.cr.playGame.hood.loader.geom
-            self.loader.hood.halloweenLights = geom.findAllMatches('**/*light*')
-            self.loader.hood.halloweenLights += geom.findAllMatches('**/*lamp*')
-            self.loader.hood.halloweenLights += geom.findAllMatches('**/prop_snow_tree*')
-            for light in self.loader.hood.halloweenLights:
-                light.setColorScaleOff(0)
-
-        newsManager = base.cr.newsManager
-        if newsManager:
-            holidayIds = base.cr.newsManager.getDecorationHolidayId()
-            if (ToontownGlobals.HALLOWEEN_COSTUMES in holidayIds or ToontownGlobals.SPOOKY_COSTUMES in holidayIds) and self.loader.hood.spookySkyFile:
-                lightsOff = Sequence(LerpColorScaleInterval(base.cr.playGame.hood.loader.geom, 0.1, Vec4(0.55, 0.55, 0.65, 1)), Func(self.loader.hood.startSpookySky), Func(__lightDecorationOn__))
-                lightsOff.start()
-            else:
-                self.loader.hood.startSky()
-                lightsOn = LerpColorScaleInterval(base.cr.playGame.hood.loader.geom, 0.1, Vec4(1, 1, 1, 1))
-                lightsOn.start()
-        else:
-            self.loader.hood.startSky()
-            lightsOn = LerpColorScaleInterval(base.cr.playGame.hood.loader.geom, 0.1, Vec4(1, 1, 1, 1))
-            lightsOn.start()
         NametagGlobals.setMasterArrowsOn(1)
         self.zoneId = requestStatus['zoneId']
-        self.tunnelOriginList = base.cr.hoodMgr.addLinkTunnelHooks(self, self.loader.nodeList, self.zoneId)
         how = requestStatus['how']
         if how == 'teleportIn':
             how = 'deathAck'

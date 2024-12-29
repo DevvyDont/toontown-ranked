@@ -36,25 +36,20 @@ class SafeZoneLoader(StateData.StateData):
         self.placeDoneEvent = 'placeDone'
         self.place = None
         self.playgroundClass = None
+        self.music = None
+        self.activityMusic = None
+        self.musicFile = None
+        self.activityMusicFile = None
 
         self.townBattle = TownBattle('town-battle-done')
         fileSystem = VirtualFileSystem.getGlobalPtr()
         self.musicJson = json.loads(fileSystem.readFile(ToontownGlobals.musicJsonFilePath, True))
+        self.geom = None
         return
 
     def load(self):
         self.music = base.loader.loadMusic(self.musicFile)
         self.activityMusic = base.loader.loadMusic(self.activityMusicFile)
-        self.createSafeZone(self.dnaFile)
-        self.parentFSMState.addChild(self.fsm)
-        self.battleMusic = base.loader.loadMusic('phase_9/audio/bgm/encntr_suit_winning.ogg')
-
-        if str(self.hood.id) in self.musicJson['global_music']:
-            self.music = base.loader.loadMusic(self.musicJson['global_music'][str(self.hood.id)])
-            if (str(self.hood.id) + '_activity') in self.musicJson['global_music']:
-                self.activityMusic = base.loader.loadMusic(self.musicJson['global_music'][(str(self.hood.id) + '_activity')])
-            if (str(self.hood.id) + '_battle') in self.musicJson['global_music']:
-                self.battleMusic = base.loader.loadMusic(self.musicJson['global_music'][(str(self.hood.id) + '_battle')])
 
     def unload(self):
         self.parentFSMState.removeChild(self.fsm)
@@ -85,28 +80,7 @@ class SafeZoneLoader(StateData.StateData):
         self.fsm.request(stateName, [requestStatus])
 
     def createSafeZone(self, dnaFile):
-        base.discord.setZone(self.hood.id)
-        if self.safeZoneStorageDNAFile:
-            loader.loadDNAFile(self.hood.dnaStore, self.safeZoneStorageDNAFile)
-        node = loader.loadDNAFile(self.hood.dnaStore, dnaFile)
-        if node.getNumParents() == 1:
-            self.geom = NodePath(node.getParent(0))
-            self.geom.reparentTo(hidden)
-        else:
-            self.geom = hidden.attachNewNode(node)
-        self.makeDictionaries(self.hood.dnaStore)
-        self.createAnimatedProps(self.nodeList)
-        self.holidayPropTransforms = {}
-        npl = self.geom.findAllMatches('**/=DNARoot=holiday_prop')
-        for i in range(npl.getNumPaths()):
-            np = npl.getPath(i)
-            np.setTag('transformIndex', repr(i))
-            self.holidayPropTransforms[i] = np.getNetTransform()
-
-        self.geom.flattenMedium()
-        gsg = base.win.getGsg()
-        if gsg:
-            self.geom.prepareScene(gsg)
+        pass
 
     def makeDictionaries(self, dnaStore):
         self.nodeList = []
