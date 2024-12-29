@@ -26,16 +26,11 @@ class TTHood(ToonHood.ToonHood):
     def load(self):
         ToonHood.ToonHood.load(self)
         self.parentFSM.getStateNamed('TTHood').addChild(self.fsm)
+        base.camLens.setFar(9999)
 
     def unload(self):
         self.parentFSM.getStateNamed('TTHood').removeChild(self.fsm)
         ToonHood.ToonHood.unload(self)
-
-    def enter(self, *args):
-        ToonHood.ToonHood.enter(self, *args)
-
-    def exit(self):
-        ToonHood.ToonHood.exit(self)
 
     def skyTrack(self, task):
         pass

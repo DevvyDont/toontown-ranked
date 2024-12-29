@@ -58,11 +58,9 @@ class SafeZoneLoader(StateData.StateData):
         del self.geom
         del self.fsm
         del self.hood
-        del self.nodeList
         del self.playgroundClass
         del self.music
         del self.activityMusic
-        del self.holidayPropTransforms
         self.deleteAnimatedProps()
         self.ignoreAll()
         ModelPool.garbageCollect()
@@ -224,6 +222,10 @@ class SafeZoneLoader(StateData.StateData):
         return
 
     def deleteAnimatedProps(self):
+
+        if not hasattr(self, 'animPropDict'):
+            return
+
         for zoneNode, animPropList in list(self.animPropDict.items()):
             for animProp in animPropList:
                 animProp.delete()

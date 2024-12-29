@@ -95,8 +95,8 @@ class Hood(StateData.StateData):
         del self.parentFSM
         self.dnaStore.resetHood()
         del self.dnaStore
-        self.sky.removeNode()
-        del self.sky
+        # self.sky.removeNode()
+        # del self.sky
         self.ignoreAll()
         ModelPool.garbageCollect()
         TexturePool.garbageCollect()
@@ -108,7 +108,7 @@ class Hood(StateData.StateData):
         pass
 
     def isSameHood(self, status):
-        return status['hoodId'] == self.hoodId and status['shardId'] == None
+        return status['hoodId'] == self.hoodId and 'shardId' in status and status['shardId'] is None
 
     def enterFinal(self):
         pass

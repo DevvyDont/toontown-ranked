@@ -71,8 +71,6 @@ class HoodDataAI:
     def removeDistObj(self, distObj):
         del self.doId2do[distObj.doId]
 
-
-
     def createFishingPonds(self):
         self.fishingPonds = []
         fishingPondGroups = []

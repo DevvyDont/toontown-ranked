@@ -181,8 +181,8 @@ class PlayGame(StateData.StateData):
 
     def handleHoodDone(self):
         doneStatus = self.hood.getDoneStatus()
-        shardId = doneStatus['shardId']
-        if shardId != None:
+        shardId = doneStatus.get('shardId')
+        if shardId is not None:
             self.doneStatus = doneStatus
             messenger.send(self.doneEvent)
             base.transitions.fadeOut(0)
@@ -194,7 +194,8 @@ class PlayGame(StateData.StateData):
         if how in ['tunnelIn',
          'teleportIn',
          'doorIn',
-         'elevatorIn']:
+         'elevatorIn',
+         'movie']:
             self.fsm.request('quietZone', [doneStatus])
         else:
             self.notify.error('Exited hood with unexpected mode %s' % how)

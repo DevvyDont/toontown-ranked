@@ -11,6 +11,8 @@ from . import Hood
 from toontown.building import SuitInterior
 from toontown.cogdominium import CogdoInterior
 from toontown.toon.Toon import teleportDebug
+from ..coghq import CashbotCogHQLoader
+
 
 class ToonHood(Hood.Hood):
     notify = DirectNotifyGlobal.directNotify.newCategory('ToonHood')
@@ -21,6 +23,7 @@ class ToonHood(Hood.Hood):
         self.minigameDoneEvent = 'minigameDone'
         self.safeZoneLoaderClass = None
         self.townLoaderClass = None
+        self.cogHQLoaderClass = CashbotCogHQLoader.CashbotCogHQLoader
         self.fsm = ClassicFSM.ClassicFSM('Hood', [State.State('start', self.enterStart, self.exitStart, ['townLoader', 'safeZoneLoader']),
          State.State('townLoader', self.enterTownLoader, self.exitTownLoader, ['quietZone',
           'safeZoneLoader',
@@ -31,6 +34,7 @@ class ToonHood(Hood.Hood):
           'cogdoInterior',
           'townLoader',
           'minigame']),
+         State.State('cogHQLoader', self.enterCogHQLoader, self.exitCogHQLoader, ['quietZone, townLoader', 'safeZoneLoader']),
          State.State('purchase', self.enterPurchase, self.exitPurchase, ['quietZone', 'minigame', 'safeZoneLoader']),
          State.State('suitInterior', self.enterSuitInterior, self.exitSuitInterior, ['quietZone', 'townLoader', 'safeZoneLoader']),
          State.State('cogdoInterior', self.enterCogdoInterior, self.exitCogdoInterior, ['quietZone', 'townLoader', 'safeZoneLoader']),
@@ -52,6 +56,24 @@ class ToonHood(Hood.Hood):
         del self.townLoaderClass
         Hood.Hood.unload(self)
 
+    def handleCogHQLoaderDone(self):
+        doneStatus = self.loader.getDoneStatus()
+        if self.isSameHood(doneStatus):
+            self.fsm.request('quietZone', [doneStatus])
+        else:
+            self.doneStatus = doneStatus
+            messenger.send(self.doneEvent)
+
+    def enterCogHQLoader(self, requestStatus):
+        self.accept(self.loaderDoneEvent, self.handleCogHQLoaderDone)
+        self.loader.enter(requestStatus)
+
+    def exitCogHQLoader(self):
+        self.ignore(self.loaderDoneEvent)
+        self.loader.exit()
+        self.loader.unload()
+        del self.loader
+
     def loadLoader(self, requestStatus):
         loaderName = requestStatus['loader']
         if loaderName == 'safeZoneLoader':
@@ -59,6 +81,9 @@ class ToonHood(Hood.Hood):
             self.loader.load()
         elif loaderName == 'townLoader':
             self.loader = self.townLoaderClass(self, self.fsm.getStateNamed('townLoader'), self.loaderDoneEvent)
+            self.loader.load(requestStatus['zoneId'])
+        elif loaderName == 'cogHQLoader':
+            self.loader = self.cogHQLoaderClass(self, self.fsm.getStateNamed('cogHQLoader'), self.loaderDoneEvent)
             self.loader.load(requestStatus['zoneId'])
 
     def enterTownLoader(self, requestStatus):

@@ -1,7 +1,9 @@
 from direct.interval.IntervalGlobal import *
 from panda3d.core import *
 
+from libotp.nametag import NametagGlobals
 from toontown.battle.BattlePlace import BattlePlace
+from toontown.building import Elevator
 from toontown.toonbase.ToonBaseGlobal import *
 from direct.directnotify import DirectNotifyGlobal
 from toontown.hood import Place
@@ -12,11 +14,12 @@ from direct.fsm import State
 from direct.task import Task
 from toontown.toon import DeathForceAcknowledge
 from toontown.toon import HealthForceAcknowledge
+from toontown.town import TownBattle
 from toontown.tutorial import TutorialForceAcknowledge
 from toontown.toon import NPCForceAcknowledge
 from toontown.trolley import Trolley
 from toontown.toontowngui import TTDialog
-from toontown.toonbase import ToontownGlobals
+from toontown.toonbase import ToontownGlobals, ToontownBattleGlobals
 from toontown.toon.Toon import teleportDebug
 from toontown.toonbase import TTLocalizer
 from direct.gui import DirectLabel
@@ -28,6 +31,7 @@ class Playground(BattlePlace):
     def __init__(self, loader, parentFSM, doneEvent):
         super().__init__(loader, doneEvent)
         self.tfaDoneEvent = 'tfaDoneEvent'
+        self.elevatorDoneEvent = 'elevatorDone'
         self.fsm = ClassicFSM.ClassicFSM('Playground', [
             State.State('start',
                         self.enterStart,
@@ -36,6 +40,35 @@ class Playground(BattlePlace):
                             'deathAck',
                             'doorIn',
                             'tunnelIn']),
+            State.State('elevator', self.enterElevator, self.exitElevator, ['walk', 'stopped']),
+            State.State('finalBattle', self.enterFinalBattle, self.exitFinalBattle, ['walk',
+                                                                                     'stickerBook',
+                                                                                     'teleportOut',
+                                                                                     'died',
+                                                                                     'tunnelOut',
+                                                                                     'DFA',
+                                                                                     'battle',
+                                                                                     'movie',
+                                                                                     'ouch',
+                                                                                     'crane',
+                                                                                     'WaitForBattle',
+                                                                                     'squished']),
+            State.State('movie', self.enterMovie, self.exitMovie, ['walk',
+                                                                   'battle',
+                                                                   'finalBattle',
+                                                                   'died',
+                                                                   'teleportOut']),
+            State.State('ouch', self.enterOuch, self.exitOuch, ['walk',
+                                                                'battle',
+                                                                'finalBattle',
+                                                                'died',
+                                                                'crane']),
+            State.State('crane', self.enterCrane, self.exitCrane, ['walk',
+                                                                   'battle',
+                                                                   'finalBattle',
+                                                                   'died',
+                                                                   'ouch',
+                                                                   'squished']),
             State.State('walk',
                         self.enterWalk,
                         self.exitWalk, [
@@ -54,7 +87,8 @@ class Playground(BattlePlace):
                             'stopped',
                             'fishing',
                             'battle',
-                            'teleportOut']),
+                            'teleportOut',
+                        'elevator']),
             State.State('stickerBook',
                         self.enterStickerBook,
                         self.exitStickerBook, [
@@ -181,7 +215,7 @@ class Playground(BattlePlace):
             State.State('stopped',
                         self.enterStopped,
                         self.exitStopped, [
-                            'walk']),
+                            'walk', 'elevator']),
             State.State('fishing',
                         self.enterFishing,
                         self.exitFishing, [
@@ -200,6 +234,8 @@ class Playground(BattlePlace):
         self.npcfaDoneEvent = 'npcfaDoneEvent'
         self.dialog = None
         self.deathAckBox = None
+        self.townBattleDoneEvent = 'town-battle-done'
+        self.townBattle = None
         return
 
     def enter(self, requestStatus):
@@ -226,12 +262,6 @@ class Playground(BattlePlace):
 
         del self.tunnelOriginList
         self.loader.geom.reparentTo(hidden)
-
-        def __lightDecorationOff__():
-            for light in self.loader.hood.halloweenLights:
-                light.reparentTo(hidden)
-
-        newsManager = base.cr.newsManager
         NametagGlobals.setMasterArrowsOn(0)
         for i in self.loader.nodeList:
             self.loader.exitAnimatedProps(i)
@@ -241,6 +271,7 @@ class Playground(BattlePlace):
 
     def load(self):
         Place.Place.load(self)
+        self.townBattle = TownBattle.TownBattle(self.townBattleDoneEvent)
         self.parentFSM.getStateNamed('playground').addChild(self.fsm)
 
     def unload(self):
@@ -257,6 +288,108 @@ class Playground(BattlePlace):
         self.ignoreAll()
         Place.Place.unload(self)
         return
+
+    def enterBattle(self, event):
+        mult = 1
+        if self.bossCog:
+            mult = ToontownBattleGlobals.getBossBattleCreditMultiplier(self.bossCog.battleNumber)
+        self.townBattle.enter(event, self.fsm.getStateNamed('battle'), bldg=1, creditMultiplier=mult)
+        self.enterFLM()
+        base.localAvatar.b_setAnimState('off', 1)
+        base.localAvatar.setTeleportAvailable(0)
+        base.localAvatar.cantLeaveGame = 1
+
+    def exitBattle(self):
+        self.townBattle.exit()
+
+    def enterFinalBattle(self):
+        self.walkStateData.enter()
+        self.walkStateData.fsm.request('walking')
+        base.localAvatar.setTeleportAvailable(0)
+        base.localAvatar.setTeleportAllowed(0)
+        base.localAvatar.cantLeaveGame = 0
+        base.localAvatar.book.hideButton()
+        self.ignore(ToontownGlobals.StickerBookHotkey)
+        self.ignore('enterStickerBook')
+        self.ignore(ToontownGlobals.OptionsPageHotkey)
+
+    def exitFinalBattle(self):
+        self.walkStateData.exit()
+        base.localAvatar.setTeleportAllowed(1)
+
+    def enterMovie(self, requestStatus = None):
+        base.localAvatar.setTeleportAvailable(0)
+
+    def exitMovie(self):
+        pass
+
+    def enterOuch(self):
+        base.localAvatar.setTeleportAvailable(0)
+        base.localAvatar.laffMeter.start()
+
+    def exitOuch(self):
+        base.localAvatar.laffMeter.stop()
+
+    def enterCrane(self):
+        base.localAvatar.setTeleportAvailable(0)
+        base.localAvatar.laffMeter.start()
+        base.localAvatar.collisionsOn()
+
+    def exitCrane(self):
+        base.localAvatar.collisionsOff()
+        base.localAvatar.laffMeter.stop()
+
+    def enterWalk(self, teleportIn = 0):
+        super().enterWalk(teleportIn)
+        self.ignore('teleportQuery')
+        base.localAvatar.setTeleportAvailable(0)
+        base.localAvatar.setTeleportAllowed(0)
+        base.localAvatar.book.hideButton()
+        self.ignore(ToontownGlobals.StickerBookHotkey)
+        self.ignore('enterStickerBook')
+        self.ignore(ToontownGlobals.OptionsPageHotkey)
+        self.ignore(self.walkDoneEvent)
+
+    def exitWalk(self):
+        super().exitWalk()
+        base.localAvatar.setTeleportAllowed(1)
+
+    def enterStickerBook(self, page = None):
+        super().enterStickerBook(page)
+        self.ignore('teleportQuery')
+        base.localAvatar.setTeleportAvailable(0)
+
+    def enterSit(self):
+        super().enterSit()
+        self.ignore('teleportQuery')
+        base.localAvatar.setTeleportAvailable(0)
+
+    def enterTeleportIn(self, requestStatus):
+        base.localAvatar.detachNode()
+        base.localAvatar.setPosHpr(0, 0, 0, 0, 0, 0)
+        super().enterTeleportIn(requestStatus)
+
+    def enterTeleportOut(self, requestStatus):
+        super().enterTeleportOut(requestStatus, self.__teleportOutDone)
+
+    def __teleportOutDone(self, requestStatus):
+        hoodId = requestStatus['hoodId']
+        if hoodId == ToontownGlobals.MyEstate:
+            self.getEstateZoneAndGoHome(requestStatus)
+        else:
+            self.doneStatus = requestStatus
+            messenger.send(self.doneEvent)
+
+    def enterSquished(self):
+        base.localAvatar.laffMeter.start()
+        base.localAvatar.b_setAnimState('Flattened')
+
+    def handleSquishDone(self, extraArgs = []):
+        base.cr.playGame.getPlace().setState('walk')
+
+    def exitSquished(self):
+        taskMgr.remove(base.localAvatar.uniqueName('finishSquishTask'))
+        base.localAvatar.laffMeter.stop()
 
     def showTreasurePoints(self, points):
         self.hideDebugPointText()
@@ -294,6 +427,40 @@ class Playground(BattlePlace):
         np.setPos(point[0], point[1], point[2])
         np.setScale(4.0)
         np.setBillboardPointEye()
+
+    def enterElevator(self, distElevator, skipDFABoard = 0):
+        self.accept(self.elevatorDoneEvent, self.handleElevatorDone)
+        self.elevator = Elevator.Elevator(self.fsm.getStateNamed('elevator'), self.elevatorDoneEvent, distElevator)
+        if skipDFABoard:
+            self.elevator.skipDFABoard = 1
+        distElevator.elevatorFSM = self.elevator
+        self.elevator.load()
+        self.elevator.enter()
+
+    def exitElevator(self):
+        self.ignore(self.elevatorDoneEvent)
+        self.elevator.unload()
+        self.elevator.exit()
+        del self.elevator
+
+    def detectedElevatorCollision(self, distElevator):
+        self.fsm.request('elevator', [distElevator])
+
+    def handleElevatorDone(self, doneStatus):
+        self.notify.debug('handling elevator done event')
+        where = doneStatus['where']
+        if where == 'reject':
+            if hasattr(base.localAvatar, 'elevatorNotifier') and base.localAvatar.elevatorNotifier.isNotifierOpen():
+                pass
+            else:
+                self.fsm.request('walk')
+        elif where == 'exit':
+            self.fsm.request('walk')
+        elif where == 'cogHQBossBattle':
+            self.doneStatus = doneStatus
+            messenger.send(self.doneEvent)
+        else:
+            self.notify.error('Unknown mode: ' + where + ' in handleElevatorDone')
 
     def enterTrolley(self):
         base.localAvatar.laffMeter.start()
